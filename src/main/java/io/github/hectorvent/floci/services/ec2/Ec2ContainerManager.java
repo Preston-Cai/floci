@@ -664,34 +664,6 @@ public class Ec2ContainerManager {
         }
     }
 
-    private boolean execInContainerWithCloudWatch(
-        String containerId, String[] cmd, int timeout, TimeUnit unit, 
-        String logGroup, String logStream, String region
-    ) throws Exception {
-        String execId = dockerClient.execCreateCmd(containerId)
-                .withCmd(cmd)
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .exec()
-                .getId();
-
-        CountDownLatch latch = new CountDownLatch(1);
-        dockerClient.execStartCmd(execId).exec(new ResultCallback.Adapter<Frame>() {
-            @Override
-            public void onNext(Frame frame) {
-                String line = new String(frame.getPayload(), StandardCharsets.UTF_8).stripTrailing();
-                if (!line.isEmpty()) {
-                    logStreamer.streamToCloudWatchLogs(logGroup, logStream, region, line);
-                }
-            }
-            @Override
-            public void onComplete() { latch.countDown(); }
-            @Override
-            public void onError(Throwable t) { latch.countDown(); }
-        });
-        return latch.await(timeout, unit);
-    }
-
     private String getContainerBridgeIp(String containerId) {
         try {
             var inspect = dockerClient.inspectContainerCmd(containerId).exec();
